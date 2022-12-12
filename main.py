@@ -1,32 +1,79 @@
 from Scweet import user as twi_user
-from Scweet import scweet
 from Scweet.scweet import scrape
-import pandas as pd
 import re
 import time
 import json
-import tweepy
-
-def interact_frequency():
-    return
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def reply_count(fromU, to, since, until, proxy):
-    replys = scrape(to_account=to, from_account=fromU, since=since, until=until, interval=10, headless=False, display_type="Latest", save_images=False, proxy=proxy, save_dir='outputs', resume=False)
+    replys = scrape(to_account=to, from_account=fromU, since=since, until=until, interval=100, headless=True, display_type="Latest", save_images=False, proxy=proxy, save_dir='outputs', resume=False)
     replys_num = len(replys)
     return replys_num
 
-if __name__ == '__main__' :
-    users = ['@EN__Ien']
-    proxy = "127.0.0.1:8964"
-    env = 'run.env'
+def get_interact_tweets(userTo):
+    proxy = '127.0.0.1:8964' #replace with your http proxy here(or None)
     dateToday = time.strftime("%Y-%m-%d", time.localtime())
-    limit = 20
+    strftimeI = time.strptime(joinDate[i], "%Y-%m-%d")
+    strftimeJ = time.strptime(joinDate[userTo], "%Y-%m-%d")
+    if strftimeI >= strftimeJ:
+        dateSince = joinDate[i]
+    else:
+        dateSince = joinDate[userTo]
+    a2bCount = int(reply_count(fromU=i, to=userTo, since=dateSince, until=dateToday, proxy=proxy))
+    b2aCount = int(reply_count(fromU=userTo, to=i, since=dateSince, until=dateToday, proxy=proxy))
+    # start judgement
+    if a2bCount == 0 and b2aCount == 0:
+        print('')
+        return {}
+    elif b2aCount == 0 and a2bCount != 0:
+        return {'victims': [userTo]}
+    elif a2bCount == 0 and b2aCount >= 4:
+        return {'suspects': [userTo]}
+    else:
+        posibility = a2bCount / b2aCount
+        if posibility >= 2.2 and b2aCount < 8:
+            return {'victims': [userTo]}
+        elif posibility >= 1 and posibility < 1.8 and b2aCount >= 8:
+            return {'socialCircleOfUser': [userTo]}
+        elif posibility < 1 and posibility >= 0.4 and b2aCount >= 8:
+            return {'socialCircleOfUser': [userTo]}
+        elif posibility < 0.4 and b2aCount >= 8:
+            return {'suspects': [userTo]}
+
+def callback(m):
+    userType, user = m.result()
+    return userType, user
+
+
+if __name__ == '__main__' :
+    users = ['@Twitter']#replace with your target user here
+    proxy = "127.0.0.1:8964"#replace with your http proxy here(or None)
+    env = 'main.env'
+    dateToday = time.strftime("%Y-%m-%d", time.localtime())
+    limit = 65535
 
     #print(env)
 
-    following = twi_user.get_users_following(users=users, verbose=0, headless=False, env=env, wait=1, file_path=None, proxy=proxy, limit=limit)
-    followers = twi_user.get_users_followers(users=users, verbose=0, headless=False, env=env, wait=1, file_path=None, proxy=proxy, limit=limit)
-    info, ifExist = twi_user.get_user_information(users=users, driver=None, headless=False, proxy=proxy)
+    filePath = 'outputs/' + 'users_basic_info.json'
+    if os.path.exists(filePath):
+        with open(filePath,"r") as readF:
+            userBasicInfo = json.load(readF)
+        following = userBasicInfo['following']
+        followers = userBasicInfo['followers']
+        print(followers)
+        print(following)
+    else:
+        following = twi_user.get_users_following(users=users, verbose=0, headless=False, env=env, wait=1,
+                                                 file_path=None, proxy=proxy, limit=limit)
+        followers = twi_user.get_users_followers(users=users, verbose=0, headless=False, env=env, wait=1,
+                                                 file_path=None, proxy=proxy, limit=limit)
+        usersInfo = {"following":following, "followers":followers}
+        with open(filePath, "w") as write_file:
+            json.dump(usersInfo, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
+        print(filePath + str(usersInfo))
+
+    info, ifExist = twi_user.get_user_information(users=users, driver=None, headless=True, proxy=proxy)
     #print(info)
     for j in ifExist:
         users.remove(j)
@@ -52,10 +99,23 @@ if __name__ == '__main__' :
         friends[i] = friendsFindFormatted
         joinDate[i] = joinDateFormatted
         # get friend's join date
-        friendInfo, lockedFriends = twi_user.get_user_information(users=friendsFindFormatted, driver=None, headless=False, proxy=proxy)
+        filePath = 'outputs/' + 'users_friends_info.json'
+        if os.path.exists(filePath):
+            with open(filePath, "r") as readF:
+                friendsBasicInfo = json.load(readF)
+            friendInfo = friendsBasicInfo
+            friends[i] = list(friendInfo.keys())
+            print(friendInfo)
+        else:
+            friendInfo, lockedFriends = twi_user.get_user_information(users=friendsFindFormatted, driver=None, headless=True, proxy=proxy)
+            for j in lockedFriends:
+                friends[i].remove(j)
+                friendInfo.pop(j, None)
+            with open(filePath, "w") as write_file:
+                json.dump(friendInfo, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
+            print(filePath + str(friendInfo))
         print(friendInfo)
-        for j in lockedFriends:
-            friends[i].remove(j)
+        print(friends[i])
         for j in friends[i]:
             currentUserInfo = friendInfo[j]
             currentUserJoinDate = currentUserInfo[2]
@@ -67,40 +127,34 @@ if __name__ == '__main__' :
         victims = []
         suspects = []
         socialCircleOfUser = []
-        for j in friends[i]:
-            a2bCount = int(reply_count(fromU=i, to=j, since=joinDate[i], until=dateToday, proxy=proxy))
-            b2aCount = int(reply_count(fromU=j, to=i, since=joinDate[j], until=dateToday, proxy=proxy))
-            #start judgement
-            posibility = a2bCount/b2aCount
-            if b2aCount == 0 and a2bCount != 0:
-                victims.append(j)
-                break
-            if a2bCount == 0 and b2aCount >= 4:
-                suspects.append(j)
-                break
-            if posibility >= 2.2:
-                victims.append(j)
-                break
-            if posibility >= 1 and posibility < 1.8:
-                socialCircleOfUser.append(j)
-                break
-            if posibility <1 and posibility >= 0.4:
-                socialCircleOfUser.append(j)
-                break
-            if posibility < 0.4:
-                suspects.append(j)
-                break
-
-    #save file to json
-    for i in users:
-        filePath = 'outputs/' + 'from' + '_' +str(i) + '_' + 'persons_on_trail.json'
         personsOnTrail = {'victims': victims, 'suspects': suspects, 'socialCircleOfUser': socialCircleOfUser}
+        with ThreadPoolExecutor(max_workers=10) as pool:
+            for data in pool.map(get_interact_tweets,friends[i]):
+                print(data)
+                if data != {}:
+                    for q, j in personsOnTrail.items():
+                        try:
+                            z = data[q]
+                            print(z)
+                            personsOnTrail[q].extend([x for x in z])
+                            print(personsOnTrail)
+                        except:
+                            print('have no data'+q)
+
+        #save file to json
+
+        filePath = 'outputs/' + 'from' + '_' +str(i) + '_' + 'persons_on_trail.json'
         with open(filePath, "w") as write_file:
             json.dump(personsOnTrail, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
         print(filePath + str(personsOnTrail))
 
 
-
-
+"""            for j,q in result:
+                if j == 'vic':
+                    victims.append(q)
+                elif j == 'sus':
+                    suspects.append(q)
+                elif j == 'cir':
+                    socialCircleOfUser.append(q)"""
 
 
