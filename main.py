@@ -12,7 +12,7 @@ def reply_count(fromU, to, since, until, proxy):
     return replys_num
 
 def get_interact_tweets(userTo):
-    proxy = '127.0.0.1:8964' #replace with your http proxy here(or None)
+    proxy = None #replace with your http proxy here(or None)
     dateToday = time.strftime("%Y-%m-%d", time.localtime())
     strftimeI = time.strptime(joinDate[i], "%Y-%m-%d")
     strftimeJ = time.strptime(joinDate[userTo], "%Y-%m-%d")
@@ -47,42 +47,41 @@ def callback(m):
 
 
 if __name__ == '__main__' :
-    users = ['@Twitter']#replace with your target user here
-    proxy = "127.0.0.1:8964"#replace with your http proxy here(or None)
-    env = 'main.env'
+    users = ['@WaiFu8964', '@EN__Ien', ]#replace with your target user here
+    proxy = None#replace with your http proxy here(or None)
+    env = 'run.env'
     dateToday = time.strftime("%Y-%m-%d", time.localtime())
     limit = 65535
 
     #print(env)
-
-    filePath = 'outputs/' + 'users_basic_info.json'
-    if os.path.exists(filePath):
-        with open(filePath,"r") as readF:
-            userBasicInfo = json.load(readF)
-        following = userBasicInfo['following']
-        followers = userBasicInfo['followers']
-        print(followers)
-        print(following)
-    else:
-        following = twi_user.get_users_following(users=users, verbose=0, headless=False, env=env, wait=1,
-                                                 file_path=None, proxy=proxy, limit=limit)
-        followers = twi_user.get_users_followers(users=users, verbose=0, headless=False, env=env, wait=1,
-                                                 file_path=None, proxy=proxy, limit=limit)
-        usersInfo = {"following":following, "followers":followers}
-        with open(filePath, "w") as write_file:
-            json.dump(usersInfo, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
-        print(filePath + str(usersInfo))
-
-    info, ifExist = twi_user.get_user_information(users=users, driver=None, headless=True, proxy=proxy)
-    #print(info)
-    for j in ifExist:
-        users.remove(j)
 
     #start finding friends
     friends = {}
     joinDate = {}
     #get user's information
     for i in users :
+        filePath = 'outputs/' + i + 'users_basic_info.json'
+        if os.path.exists(filePath):
+            with open(filePath, "r") as readF:
+                userBasicInfo = json.load(readF)
+            following = userBasicInfo['following']
+            followers = userBasicInfo['followers']
+            print(followers)
+            print(following)
+        else:
+            following = twi_user.get_users_following(users=i, verbose=0, headless=False, env=env, wait=1,
+                                                     file_path=None, proxy=proxy, limit=limit)
+            followers = twi_user.get_users_followers(users=i, verbose=0, headless=False, env=env, wait=1,
+                                                     file_path=None, proxy=proxy, limit=limit)
+            usersInfo = {"following": following, "followers": followers}
+            with open(filePath, "w") as write_file:
+                json.dump(usersInfo, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
+            print(filePath + str(usersInfo))
+
+        info, ifExist = twi_user.get_user_information(users=i, driver=None, headless=True, proxy=proxy)
+        # print(info)
+        if i in ifExist:
+            continue
         currentUserFollowing = following[i]
         currentUserFollowers = followers[i]
         currentUserInfo = info[i]
