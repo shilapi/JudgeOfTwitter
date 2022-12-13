@@ -1,4 +1,4 @@
-# TwitterDumbassChecking
+# Judge of twitter 
  
 ## NEVER UPDATE SCWEET
 
