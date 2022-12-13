@@ -47,7 +47,7 @@ def callback(m):
 
 
 if __name__ == '__main__' :
-    users = ['@WaiFu8964', '@EN__Ien', ]#replace with your target user here
+    users = ['@Twitter']#replace with your target user here
     proxy = None#replace with your http proxy here(or None)
     env = 'run.env'
     dateToday = time.strftime("%Y-%m-%d", time.localtime())
@@ -69,16 +69,16 @@ if __name__ == '__main__' :
             print(followers)
             print(following)
         else:
-            following = twi_user.get_users_following(users=i, verbose=0, headless=False, env=env, wait=1,
+            following = twi_user.get_users_following(users=[i], verbose=0, headless=False, env=env, wait=1,
                                                      file_path=None, proxy=proxy, limit=limit)
-            followers = twi_user.get_users_followers(users=i, verbose=0, headless=False, env=env, wait=1,
+            followers = twi_user.get_users_followers(users=[i], verbose=0, headless=False, env=env, wait=1,
                                                      file_path=None, proxy=proxy, limit=limit)
             usersInfo = {"following": following, "followers": followers}
             with open(filePath, "w") as write_file:
                 json.dump(usersInfo, write_file, sort_keys=True, indent=4, separators=(', ', ': '))
             print(filePath + str(usersInfo))
 
-        info, ifExist = twi_user.get_user_information(users=i, driver=None, headless=True, proxy=proxy)
+        info, ifExist = twi_user.get_user_information(users=[i], driver=None, headless=True, proxy=proxy)
         # print(info)
         if i in ifExist:
             continue
